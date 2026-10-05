@@ -7,6 +7,12 @@
 结果都持久化在浏览器 `localStorage` 里，刷新或重开浏览器都还在。dev server 已关掉自动打开页面，
 启动后按终端打印的地址手工打开。
 
+调速器模块另设**统一判定域**（`frontend/src/domain/governor/`，存储键
+`hydropower-plant-om:governor-domain:v1`）：油压按额定油压上下限分档、导叶开度顶限位/接力器行程
+到顶按同一套到顶比阈值判定，结论、检修班组校验待办、继电保护异常台账、对账台数全部由同一份状态
+派生。完整口径、阈值与冲突/换版/事务规则见 `frontend/docs/governor-rulebook.md`。
+逻辑自测：`cd frontend && npm run check:governor`。
+
 ## 目录结构
 
 ```text
@@ -44,7 +50,8 @@ npm run build
 | --- | --- | --- | --- |
 | 电站台账 | `station` | 水电站 | 电站编号、电站名称、装机容量 |
 | 机组运行 | `unit` | 水轮发电机组 | 机组编号、机组型号、额定转速 |
-| 调速器 | `governor` | 调速器 | 装置编号、所属机组、油压值 |
+| 调速器 | `governor` | 调速器 | 装置编号、所属机组、额定油压、油压值、导叶开度/限位、接力器行程/上限 |
+| 调速器校验待办 | `governor/todo` | 检修班组待办 | 待校验装置、建议动作、实测录入、受理记录 |
 | 励磁系统 | `excitation` | 励磁装置 | 装置编号、所属机组、励磁电压 |
 | 主变压器 | `transformer` | 主变压器 | 变压器编号、容量等级、油温 |
 | 闸门启闭 | `gate` | 闸门 | 闸门编号、闸门类型、孔口尺寸 |
@@ -70,3 +77,5 @@ npm run build
   `frontend/src/data/seed.ts`。
 - 状态流转只允许在 `local-service.ts` 里改，页面组件不做业务判断。
 - 想回到初始数据：清掉浏览器里 `hydropower-plant-om:entries` 这一项，或调用 `resetModule(模块)`。
+  调速器统一判定域单独清 `hydropower-plant-om:governor-domain:v1`（或在调速器页面点「重置回两纸并轨初始」），
+  会按存量 seed 依发生时间重新迁移。

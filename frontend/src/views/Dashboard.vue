@@ -38,6 +38,7 @@
 import { onMounted, ref } from 'vue'
 
 import { loadOverview } from '@/api/local-service'
+import { reconcile as governorReconcile } from '@/api/governor-service'
 import type { OverviewResult } from '@/data/types'
 
 const cards = ref<OverviewResult['cards']>([])
@@ -45,6 +46,23 @@ const moduleRows = ref<OverviewResult['modules']>([])
 
 function refresh() {
   const payload = loadOverview()
+  // 调速器的台数以统一判定域为准：概览、调速器页、校验待办、继电保护台账读到的是同一份。
+  const governor = governorReconcile()
+  payload.modules = payload.modules.map((row) =>
+    row.name === '调速器'
+      ? { ...row, created: governor.total, pending: governor.attention, abnormal: governor.abnormal }
+      : row,
+  )
+  const totals = payload.modules.reduce(
+    (acc, row) => ({ created: acc.created + row.created, pending: acc.pending + row.pending, abnormal: acc.abnormal + row.abnormal }),
+    { created: 0, pending: 0, abnormal: 0 },
+  )
+  payload.cards = payload.cards.map((card) => {
+    if (card.label === '登记总量') return { ...card, value: totals.created }
+    if (card.label === '待处理') return { ...card, value: totals.pending }
+    if (card.label === '异常量') return { ...card, value: totals.abnormal }
+    return card
+  })
   cards.value = payload.cards
   moduleRows.value = payload.modules
 }

@@ -4,6 +4,7 @@ import Dashboard from '@/views/Dashboard.vue'
 const Station = () => import('@/views/station/index.vue')
 const Unit = () => import('@/views/unit/index.vue')
 const Governor = () => import('@/views/governor/index.vue')
+const GovernorTodo = () => import('@/views/governor/todo.vue')
 const Excitation = () => import('@/views/excitation/index.vue')
 const Transformer = () => import('@/views/transformer/index.vue')
 const Gate = () => import('@/views/gate/index.vue')
@@ -28,6 +29,7 @@ const router = createRouter({
     { path: '/station', name: 'station', component: Station },
     { path: '/unit', name: 'unit', component: Unit },
     { path: '/governor', name: 'governor', component: Governor },
+    { path: '/governor-todo', name: 'governor-todo', component: GovernorTodo },
     { path: '/excitation', name: 'excitation', component: Excitation },
     { path: '/transformer', name: 'transformer', component: Transformer },
     { path: '/gate', name: 'gate', component: Gate },
