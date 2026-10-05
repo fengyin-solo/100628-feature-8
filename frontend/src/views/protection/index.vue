@@ -18,6 +18,38 @@
       </article>
     </div>
 
+    <section class="link-panel">
+      <header class="link-head">
+        <h3>运行台账联动 · 调速器异常装置</h3>
+        <span :class="rec.consistent ? 'ok-text' : 'error-text'">
+          {{ rec.consistent ? '跨模块台数一致 ✓' : '台数不一致（事务已拦截）✗' }}
+        </span>
+      </header>
+      <p class="link-count">
+        调速器异常（L3/L4）<strong>{{ rec.abnormalCount }}</strong> 台 ＝ 检修待办
+        <strong>{{ rec.openVerifyTodos }}</strong> 条 ＝ 本台账镜像 <strong>{{ rec.ledgerCount }}</strong> 条；
+        缺值单列 {{ rec.missingOpen }} 台、通道校验 {{ rec.openChannelTodos }} 条（均不计异常台数）。
+      </p>
+      <table class="data-table">
+        <thead>
+          <tr><th>台账号</th><th>调速器</th><th>等级</th><th>建议动作（随判定同笔写入）</th><th>口径版本</th><th>发生时间</th></tr>
+        </thead>
+        <tbody>
+          <tr v-for="item in openLedger" :key="item.id">
+            <td>{{ item.id }}</td>
+            <td>{{ item.deviceId }}</td>
+            <td :class="gradeClass(item.grade)">{{ gradeLabel(item.grade) }}</td>
+            <td>{{ item.action }}</td>
+            <td>{{ item.version }}</td>
+            <td>{{ item.openedAt }}</td>
+          </tr>
+          <tr v-if="!openLedger.length">
+            <td colspan="6" class="empty-state">当前无调速器异常镜像（台数 0，与调速器页一致）</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
     <p class="status-legend">
       <span v-for="item in statusSummary" :key="item.status" class="legend-item">
         {{ item.status }}：{{ item.count }}
@@ -80,12 +112,30 @@ import {
   runAction as applyAction,
 } from '@/api/local-service'
 import type { EntryRow } from '@/data/types'
+import { GRADE_LABEL } from '@/domain/governor/rules'
+import type { Grade } from '@/domain/governor/rules'
+import { getState, reconcile } from '@/domain/governor/store'
 
 const meta = moduleMeta('protection')
 const columns = ["装置编号", "保护类型", "定值单号", "上次校验日", "下次校验日", "动作次数", "校验人员", "装置状态"]
 const actions = ["提交校验", "标记异常", "退出运行"]
 const statuses = ["待校验", "正常", "异常", "已退出"]
-const stats = [{"label": "正常保护装置", "value": 0}, {"label": "待校验装置", "value": 0}, {"label": "即将到期装置", "value": 0}]
+
+// 跨模块联动：调速器异常台数由统一结论库算出，与调速器页、检修待办同源
+const governorState = ref(getState())
+const rec = ref(reconcile())
+const openLedger = computed(() => governorState.value.ledger.filter((item) => item.open))
+const stats = computed(() => [
+  { label: "正常保护装置", value: rows.value.filter((row) => String(row.status) === "正常").length },
+  { label: "待校验装置", value: rows.value.filter((row) => String(row.status) === "待校验").length },
+  { label: "调速器异常联动(L3/L4)", value: rec.value.abnormalCount },
+])
+function gradeLabel(g: Grade): string {
+  return GRADE_LABEL[g]
+}
+function gradeClass(g: Grade): string {
+  return `g${g}`
+}
 
 const rows = ref<EntryRow[]>([])
 const total = ref(0)
@@ -128,6 +178,8 @@ function reload() {
     const payload = listEntries(meta.key, filters.value)
     rows.value = payload.items
     total.value = payload.total
+    governorState.value = getState()
+    rec.value = reconcile()
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : '继电保护列表读取失败'
   }
@@ -135,3 +187,14 @@ function reload() {
 
 onMounted(reload)
 </script>
+
+<style scoped>
+.link-panel { background: #fff; border: 1px solid var(--border); border-radius: 8px; padding: 12px; margin-bottom: 12px; }
+.link-head { display: flex; justify-content: space-between; align-items: center; }
+.link-head h3 { margin: 0 0 6px; font-size: 15px; }
+.link-count { font-size: 12px; color: var(--muted); margin: 0 0 8px; }
+.ok-text { color: #067647; }
+.error-text { color: #b42318; }
+.g3 { color: #b42318; }
+.g4 { color: #7a271a; background: #fee4e2; }
+</style>

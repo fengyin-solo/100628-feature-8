@@ -1,5 +1,6 @@
 import { MODULE_BY_KEY } from '@/data/modules'
 import { allRows, listRows, resetRows, saveRows } from '@/data/local-store'
+import { getState, reconcile as governorReconcile } from '@/domain/governor/store'
 import type { ActionResult, EntryRow, ModuleMeta, OverviewResult, PageResult } from '@/data/types'
 
 // 会写进数据的「往回走」动作：命中就把这条记录标成异常态，看板上能一眼看出来。
@@ -86,8 +87,18 @@ export function downloadEntries(key: string): void {
 
 export function loadOverview(): OverviewResult {
   const rows = allRows()
+  const governorRec = governorReconcile()
   const modules = [...MODULE_BY_KEY.values()].map((meta) => {
     const entries = rows[meta.key] ?? []
+    // 调速器模块的异常/待处理台数以统一判定结论库为准，全平台只有一套数字
+    if (meta.key === 'governor') {
+      return {
+        name: meta.name,
+        created: getState().devices.length,
+        pending: governorRec.openVerifyTodos + governorRec.openChannelTodos,
+        abnormal: governorRec.abnormalCount,
+      }
+    }
     return {
       name: meta.name,
       created: entries.length,
